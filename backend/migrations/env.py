@@ -10,8 +10,7 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy.ext.asyncio import create_async_engine
 
-from app.core.config import settings
-from app.core.database import Base
+from app.core.database import Base, runtime_database_url
 from app.models import _import_all_models  # noqa: F401 — populates metadata
 
 # ── Alembic Config ────────────────────────────────────────────
@@ -23,10 +22,7 @@ target_metadata = Base.metadata
 
 
 def get_url() -> str:
-    url = settings.database_url
-    if url.startswith("sqlite:///") and "+aiosqlite" not in url:
-        url = url.replace("sqlite:///", "sqlite+aiosqlite:///")
-    return url
+    return runtime_database_url()
 
 
 # ── Offline mode (generates SQL without connecting) ──────────

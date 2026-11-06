@@ -55,3 +55,11 @@ async def test_health_fields():
     assert required_fields.issubset(data.keys()), (
         f"Missing fields: {required_fields - data.keys()}"
     )
+
+
+def test_vercel_database_url_is_writable(monkeypatch):
+    """Alembic and the app must open the same file Vercel allows writes to."""
+    monkeypatch.setenv("VERCEL", "1")
+    from app.core.database import runtime_database_url
+
+    assert runtime_database_url() == "sqlite+aiosqlite:////tmp/namma-civic.db"

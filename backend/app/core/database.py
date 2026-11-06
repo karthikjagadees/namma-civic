@@ -48,6 +48,25 @@ def is_running_on_vercel() -> bool:
     )
 
 
+def runtime_database_url() -> str:
+    """Return the SQLAlchemy URL this process can actually open.
+
+    Vercel can write only under ``/tmp``. The application engine and Alembic
+    must share that file, or migrations create tables the login query never sees.
+    """
+    url = settings.database_url
+    if settings.is_sqlite:
+        if is_running_on_vercel() and "/tmp" not in url:
+            return "sqlite+aiosqlite:////tmp/namma-civic.db"
+        if url.startswith("sqlite:///") and "+aiosqlite" not in url:
+            return url.replace("sqlite:///", "sqlite+aiosqlite:///")
+        return url
+
+    if url.startswith("postgresql://") and "+asyncpg" not in url and "+psycopg" not in url:
+        return url.replace("postgresql://", "postgresql+psycopg://")
+    return url
+
+
 def _build_engine():
     """
     Build an async SQLAlchemy engine from DATABASE_URL.
@@ -61,27 +80,15 @@ def _build_engine():
         - Uses psycopg async driver
         - Supports PostGIS via geoalchemy2
     """
-    url = settings.database_url
-    is_vercel = is_running_on_vercel()
+    url = runtime_database_url()
 
     if settings.is_sqlite:
-        # On Vercel / serverless, filesystem is read-only except /tmp
-        if is_vercel and ("/tmp" not in url):
-            url = "sqlite+aiosqlite:////tmp/namma-civic.db"
-        elif url.startswith("sqlite:///") and "+aiosqlite" not in url:
-            url = url.replace("sqlite:///", "sqlite+aiosqlite:///")
-
         engine = create_async_engine(
             url,
             echo=settings.debug,
             connect_args={"check_same_thread": False, "timeout": 30},
         )
     else:
-        # PostgreSQL — ensure psycopg async driver
-        if url.startswith("postgresql://") or url.startswith("postgresql+psycopg://"):
-            if "+asyncpg" not in url and "+psycopg" not in url:
-                url = url.replace("postgresql://", "postgresql+psycopg://")
-
         engine = create_async_engine(
             url,
             echo=settings.debug,
@@ -139,6 +146,28 @@ async def _upgrade_schema() -> None:
 
 # ── Dependency injection helper ───────────────────────────────────────────────
 
+_db_ready = False
+_db_lock: asyncio.Lock | None = None
+
+
+async def ensure_database() -> None:
+    """Create tables and demo accounts once per process.
+
+    Vercel's Python runtime does not always run the FastAPI lifespan before
+    the first request. Login then queries an empty database and fails.
+    """
+    global _db_ready, _db_lock
+    if _db_ready:
+        return
+    if _db_lock is None:
+        _db_lock = asyncio.Lock()
+    async with _db_lock:
+        if _db_ready:
+            return
+        await init_db()
+        _db_ready = True
+
+
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """
     FastAPI dependency that yields a database session.
@@ -148,6 +177,7 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
         async def example(db: AsyncSession = Depends(get_db)):
             ...
     """
+    await ensure_database()
     async with AsyncSessionLocal() as session:
         try:
             yield session
