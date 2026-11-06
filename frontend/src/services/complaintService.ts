@@ -119,9 +119,7 @@ export const complaintService = {
     const formData = new FormData()
     formData.append('file', file)
     const resp = await api.post('/complaints/upload', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
+      timeout: 60000,
     })
     return resp.data
   },

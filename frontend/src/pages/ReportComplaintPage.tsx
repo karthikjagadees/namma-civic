@@ -34,6 +34,28 @@ type Step = 'category' | 'details' | 'location' | 'media' | 'review' | 'done'
 type PipelineStatus = 'idle' | 'processing' | 'complete' | 'awaiting_review' | 'failed'
 const STEPS: Step[] = ['category', 'details', 'location', 'media', 'review', 'done']
 
+async function prepareEvidenceFile(file: File): Promise<File> {
+  if (!file.type.startsWith('image/') || file.size < 1_500_000) return file
+  try {
+    const bitmap = await createImageBitmap(file)
+    const maxEdge = 1600
+    const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height))
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale))
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale))
+    const context = canvas.getContext('2d')
+    if (!context) return file
+    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+    bitmap.close()
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.82))
+    if (!blob) return file
+    const name = file.name.replace(/\.[^.]+$/, '') || 'evidence'
+    return new File([blob], `${name}.jpg`, { type: 'image/jpeg' })
+  } catch {
+    return file
+  }
+}
+
 const STEP_LABELS: Record<Step, string> = {
   category: 'Category',
   details:  'Details',
@@ -86,14 +108,15 @@ export default function ReportComplaintPage() {
   }, [])
 
   const handleFiles = useCallback(async (incoming: File[]) => {
-    const newEntries: UploadedFile[] = incoming.map((f) => ({
+    const prepared = await Promise.all(incoming.map(prepareEvidenceFile))
+    const newEntries: UploadedFile[] = prepared.map((f) => ({
       file: f,
       preview: f.type.startsWith('image/') ? URL.createObjectURL(f) : undefined,
       uploading: true,
     }))
     setFiles((prev) => [...prev, ...newEntries])
 
-    for (const file of incoming) {
+    for (const file of prepared) {
       try {
         const res = await complaintService.uploadMedia(file)
         setFiles((prev) =>
@@ -421,8 +444,9 @@ export default function ReportComplaintPage() {
                       </div>
                     )}
                     {f.error && (
-                      <div className="absolute inset-0 bg-red-50/90 flex items-center justify-center p-1">
+                      <div className="absolute inset-0 bg-red-50/90 flex flex-col items-center justify-center gap-1 p-1">
                         <AlertCircle size={14} className="text-red-600" aria-hidden="true" />
+                        <span className="text-[10px] font-semibold text-red-700 text-center">{f.error}</span>
                       </div>
                     )}
                     {!f.uploading && (

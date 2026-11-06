@@ -19,6 +19,11 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
+  // The instance default is application/json. A file upload must keep the
+  // multipart boundary that the browser generates, or the API rejects the photo.
+  if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+    config.headers.delete('Content-Type')
+  }
   return config
 })
 
