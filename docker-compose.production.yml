@@ -1,0 +1,18 @@
+services:
+  backend:
+    command: ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
+    environment:
+      APP_ENV: production
+      DEBUG: "false"
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-namma-civic}:${POSTGRES_PASSWORD:?Set a URL-safe POSTGRES_PASSWORD}@postgres:5432/namma-civic
+      DATABASE_MODE: postgresql
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET to a strong random value}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    environment:
+      POSTGRES_DB: namma-civic
+      POSTGRES_USER: ${POSTGRES_USER:-namma-civic}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set a URL-safe POSTGRES_PASSWORD}

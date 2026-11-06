@@ -1,0 +1,6 @@
+# ─── Testing & Development Dependencies ─────────────────────
+pytest==8.3.3
+pytest-asyncio==0.24.0
+pytest-cov==5.0.0
+factory-boy==3.3.1
+faker==30.3.0

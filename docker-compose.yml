@@ -1,0 +1,113 @@
+# Namma Civic — Docker Compose
+# Default profile: SQLite + mock AI (zero-config demo)
+# Production profile: PostgreSQL + PostGIS
+
+name: namma-civic-ai
+
+services:
+
+  # ── Frontend ────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - namma-civic-net
+
+  # ── Backend ─────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      DATABASE_URL: ${DATABASE_URL:-sqlite:////app/data/namma-civic.db}
+      DATABASE_MODE: ${DATABASE_MODE:-sqlite}
+      JWT_SECRET: ${JWT_SECRET:-local-development-only}
+      AI_PROVIDER: ${AI_PROVIDER:-mock}
+      AI_MODE: ${AI_MODE:-mock}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      REDIS_URL: redis://redis:6379/0
+      MCP_MODE: ${MCP_MODE:-mock}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://frontend:80}
+    volumes:
+      - backend-uploads:/app/uploads
+      - backend-db:/app/data
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - namma-civic-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ── Redis ────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    networks:
+      - namma-civic-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # ── PostgreSQL + PostGIS (production profile) ────────────────
+  postgres:
+    image: postgis/postgis:16-3.4-alpine
+    profiles: ["production"]
+    environment:
+      POSTGRES_DB: namma-civic
+      POSTGRES_USER: ${POSTGRES_USER:-namma-civic}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-namma-civic_secret}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - namma-civic-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── MCP Servers (added in Phase 10) ─────────────────────────
+  # mcp-maps:
+  #   build: ./mcp-servers/maps
+  #   ports: ["8010:8010"]
+  #   profiles: ["mcp"]
+  #   networks: [namma-civic-net]
+
+  # mcp-civic:
+  #   build: ./mcp-servers/civic
+  #   ports: ["8011:8011"]
+  #   profiles: ["mcp"]
+  #   networks: [namma-civic-net]
+
+# ── Volumes ──────────────────────────────────────────────────
+volumes:
+  backend-uploads:
+  backend-db:
+  postgres-data:
+
+# ── Networks ─────────────────────────────────────────────────
+networks:
+  namma-civic-net:
+    driver: bridge

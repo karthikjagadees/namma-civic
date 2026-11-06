@@ -1,0 +1,64 @@
+# ── Python ───────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+env/
+.env
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.coverage
+htmlcov/
+*.db
+*.sqlite
+*.sqlite3
+
+# ── Node ─────────────────────────────────────────────────────
+node_modules/
+dist/
+.vite/
+*.local
+
+# ── IDE ───────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ── Docker ────────────────────────────────────────────────────
+.docker/
+
+# ── Uploads ──────────────────────────────────────────────────
+backend/uploads/
+*.jpg
+*.jpeg
+*.png
+*.mp3
+*.mp4
+*.wav
+!frontend/public/
+!frontend/public/**
+!frontend/public/hero/
+!frontend/public/hero/**
+
+# ── Logs ─────────────────────────────────────────────────────
+*.log
+logs/
+
+# Alembic revision files are source and must be committed.
+
+# ── Vercel ────────────────────────────────────────────────────
+.vercel/
+
+# ── Secrets (never commit these) ─────────────────────────────
+.env
+.env.local
+.env.production
+secrets/
