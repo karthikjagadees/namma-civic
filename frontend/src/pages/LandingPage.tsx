@@ -61,7 +61,7 @@ function CityBlob() {
   return (
     <svg viewBox="0 0 220 180" width="100%" height="150" aria-hidden="true">
       <path
-        d="M40 70 C30 40 70 18 110 28 C150 10 190 36 188 72 C210 90 196 130 160 142 C130 168 70 160 48 136 C18 124 16 96 40 70 Z"
+        d="M66 59 L78 49 L93 42 L111 32 L131 17 L144 30 L155 53 L160 70 L148 83 L156 101 L154 122 L144 138 L132 153 L117 166 L101 157 L86 145 L77 136 L68 121 L62 102 L60 85 L63 72 Z"
         fill="#9a2744"
         stroke="#f6c445"
         strokeWidth="3"
